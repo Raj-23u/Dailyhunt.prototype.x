@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Thread — Routine Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050709;
+    --surface: #0B0F17;
+    --surface2: #0F1420;
+    --neon: #00E5FF;
+    --neon-dim: #0A8FA0;
+    --violet: #7B61FF;
+    --gray: #9AA5B8;
+    --border: #1E2738;
+    --white: #F4F8FC;
+    --gold: #FFC542;
+    --silver: #C7D0DC;
+    --bronze: #CD8A56;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #020305;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+    min-height: 100vh;
+    color: var(--white);
+  }
+
+  .phone {
+    width: 390px;
+    min-height: 800px;
+    background: var(--bg);
+    border-radius: 36px;
+    box-shadow: 0 20px 70px rgba(0,229,255,0.08), 0 0 0 1px rgba(0,229,255,0.12);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .screen { display: none; flex: 1; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  .statusbar {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    flex-shrink: 0;
+  }
+
+  .header { padding: 8px 24px 20px; flex-shrink: 0; }
+  .header .date {
+    font-size: 12px; color: var(--gray); font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .header .title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 26px; font-weight: 700; margin-top: 3px; letter-spacing: -0.01em;
+  }
+
+  .today-body { flex: 1; overflow-y: auto; padding: 4px 24px 100px; }
+
+  .routine-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px 18px 8px;
+    margin-bottom: 16px;
+  }
+  .routine-card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .routine-name { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; }
+  .routine-time { font-size: 12px; color: var(--gray); font-weight: 500; }
+
+  .thread { position: relative; padding-left: 4px; }
+  .step { display: flex; align-items: center; gap: 14px; position: relative; padding: 10px 0; cursor: pointer; }
+  .step-track { position: relative; width: 22px; display: flex; flex-direction: column; align-items: center; align-self: stretch; }
+  .step-dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--border); background: var(--surface);
+    flex-shrink: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.25s ease;
+  }
+  .step-dot svg { width: 11px; height: 11px; opacity: 0; transition: opacity 0.2s; }
+  .step.done .step-dot {
+    background: var(--neon); border-color: var(--neon);
+    box-shadow: 0 0 12px rgba(0,229,255,0.65);
+  }
+  .step.done .step-dot svg { opacity: 1; }
+  .step-line {
+    position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+    width: 2px; height: calc(100% - 10px); background: var(--border); z-index: 1;
+  }
+  .step.done .step-line { background: var(--neon); box-shadow: 0 0 6px rgba(0,229,255,0.5); }
+  .step:last-child .step-line { display: none; }
+
+  .step-label { flex: 1; }
+  .step-title { font-size: 15px; font-weight: 500; transition: color 0.2s; color: var(--white); }
+  .step.done .step-title { color: var(--gray); text-decoration: line-through; text-decoration-color: var(--border); text-decoration-thickness: 1.5px; }
+  .step-duration { font-size: 12px; color: var(--gray); margin-top: 1px; }
+
+  .progress-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 2px 12px; border-top: 1px solid var(--border); margin-top: 6px;
+  }
+  .progress-text { font-size: 13px; font-weight: 600; color: var(--white); }
+  .progress-text .pct { color: var(--neon); }
+  .progress-bar-mini { flex: 1; max-width: 100px; height: 5px; background: var(--border); border-radius: 3px; margin-left: 12px; overflow: hidden; }
+  .progress-bar-mini-fill { height: 100%; background: var(--neon); border-radius: 3px; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(0,229,255,0.6); }
+
+  .empty-add-card {
+    border: 1.5px dashed var(--border); border-radius: 18px; padding: 24px;
+    text-align: center; color: var(--gray); font-size: 14px; cursor: pointer;
+  }
+
+  .bottomnav {
+    display: flex; border-top: 1px solid var(--border); background: var(--bg);
+    padding: 10px 0 18px; position: absolute; bottom: 0; left: 0; right: 0;
+  }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--gray); cursor: pointer; }
+  .nav-item.active { color: var(--neon); }
+  .nav-item svg { width: 21px; height: 21px; }
+
+  .fab {
+    position: absolute; bottom: 86px; right: 24px; width: 52px; height: 52px;
+    border-radius: 50%; background: var(--neon); color: #05070B;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 24px rgba(0,229,255,0.55); cursor: pointer; z-index: 10;
+  }
+  .fab svg { width: 22px; height: 22px; }
+
+  /* ---------- Stats ---------- */
+  .stats-body { flex: 1; overflow-y: auto; padding: 4px 24px 100px; }
+  .streak-hero {
+    background: linear-gradient(135deg, #081420 0%, #0B0F17 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px; padding: 24px 20px; margin-bottom: 18px; position: relative; overflow: hidden;
+  }
+  .streak-hero::after {
+    content: ''; position: absolute; top: -40%; right: -20%; width: 160px; height: 160px;
+    background: radial-gradient(circle, rgba(0,229,255,0.18), transparent 70%);
+  }
+  .streak-hero .label { font-size: 12px; color: var(--gray); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .streak-hero .num { font-family: 'Space Grotesk', sans-serif; font-size: 42px; font-weight: 700; margin-top: 4px; line-height: 1; color: var(--neon); text-shadow: 0 0 20px rgba(0,229,255,0.5); }
+  .streak-hero .sub { font-size: 13px; color: var(--gray); margin-top: 6px; }
+
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 20px; }
+  .week-day-label { text-align: center; font-size: 11px; color: var(--gray); font-weight: 600; margin-bottom: 6px;}
+  .day-cell { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+
+  .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray); margin: 18px 0 10px; }
+
+  .insight-row {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+  }
+  .insight-row .name { font-size: 14px; font-weight: 500; }
+  .insight-row .val { font-size: 14px; font-weight: 700; color: var(--neon); }
+
+  /* ---------- Challenges ---------- */
+  .challenges-body { flex: 1; overflow-y: auto; padding: 4px 24px 100px; }
+
+  .badge-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; }
+  .badge-mini {
+    flex-shrink: 0; width: 60px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .badge-mini-icon {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .badge-mini-label { font-size: 10px; color: var(--gray); font-weight: 600; text-align: center; }
+
+  .challenge-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+    padding: 18px; margin-bottom: 14px;
+  }
+  .challenge-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .challenge-name { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600; }
+  .challenge-sub { font-size: 12px; color: var(--gray); margin-top: 2px; }
+  .challenge-streak-badge {
+    background: rgba(123,97,255,0.15); border: 1px solid rgba(123,97,255,0.4);
+    color: var(--violet); font-size: 12px; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px; flex-shrink: 0;
+  }
+
+  .tier-row { display: flex; gap: 8px; margin-top: 12px; }
+  .tier {
+    flex: 1; border-radius: 12px; padding: 10px 8px; text-align: center;
+    border: 1px solid var(--border); background: var(--surface2);
+  }
+  .tier.unlocked { border-color: currentColor; }
+  .tier-icon { font-size: 18px; margin-bottom: 4px; display: block; }
+  .tier-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .tier-days { font-size: 10px; color: var(--gray); margin-top: 2px; }
+
+  .tier.bronze.unlocked { color: var(--bronze); box-shadow: 0 0 14px rgba(205,138,86,0.35) inset; }
+  .tier.silver.unlocked { color: var(--silver); box-shadow: 0 0 14px rgba(199,208,220,0.3) inset; }
+  .tier.gold.unlocked { color: var(--gold); box-shadow: 0 0 14px rgba(255,197,66,0.4) inset; }
+  .tier.locked { color: var(--gray); opacity: 0.5; }
+
+  .challenge-progress-bar { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 14px; }
+  .challenge-progress-fill { height: 100%; background: linear-gradient(90deg, var(--violet), var(--neon)); border-radius: 4px; }
+  .challenge-progress-text { font-size: 11px; color: var(--gray); margin-top: 6px; }
+
+  .challenge-hint { font-size: 12px; color: var(--gray); line-height: 1.5; margin-bottom: 14px; }
+
+  .template-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+    padding: 16px; margin-bottom: 12px; cursor: pointer; transition: border-color 0.2s;
+  }
+  .template-card:hover { border-color: var(--violet); }
+  .template-card.build-own { border-style: dashed; }
+  .template-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .template-icon {
+    width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 19px;
+    background: var(--surface2);
+  }
+  .template-icon.hard { background: rgba(255,87,87,0.12); }
+  .template-icon.medium { background: rgba(0,229,255,0.12); }
+  .template-icon.soft { background: rgba(123,255,160,0.12); }
+  .template-icon.own { background: rgba(123,97,255,0.15); color: var(--violet); }
+  .template-name { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; }
+  .template-desc { font-size: 11.5px; color: var(--gray); margin-top: 2px; line-height: 1.4; }
+  .template-tasks { font-size: 11.5px; color: var(--gray); padding: 8px 10px; background: var(--surface2); border-radius: 8px; margin-bottom: 10px; }
+  .template-cta { font-size: 12.5px; font-weight: 700; color: var(--neon); }
+
+  .task-edit-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .task-edit-checkbox {
+    width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--border);
+    flex-shrink: 0; background: var(--surface);
+  }
+  .task-edit-checkbox.on { background: var(--neon); border-color: var(--neon); box-shadow: 0 0 8px rgba(0,229,255,0.5); }
+  .task-edit-input { flex: 1; }
+
+  .add-step-btn-dark { display: flex; align-items: center; gap: 8px; color: var(--neon); font-weight: 600; font-size: 14px; padding: 10px 0 4px; cursor: pointer; }
+
+  .restart-options { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .restart-pill {
+    border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    font-size: 13px; font-weight: 500; color: var(--gray); cursor: pointer; background: var(--surface2);
+  }
+  .restart-pill.sel { border-color: var(--violet); color: var(--white); background: rgba(123,97,255,0.12); font-weight: 600; }
+
+  .safety-note {
+    font-size: 11.5px; color: var(--gray); line-height: 1.5; margin-top: 16px;
+    padding: 12px 14px; border-radius: 12px; background: rgba(255,197,66,0.08); border: 1px solid rgba(255,197,66,0.25);
+  }
+
+  /* ---------- Profile / Badge collection ---------- */
+  .profile-body { flex: 1; overflow-y: auto; padding: 4px 24px 100px; }
+  .badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 8px; }
+  .badge-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .badge-icon-lg {
+    width: 72px; height: 72px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; position: relative;
+  }
+  .badge-icon-lg.locked { background: var(--surface); border: 1.5px dashed var(--border); color: var(--border); }
+  .badge-name { font-size: 11px; font-weight: 600; text-align: center; color: var(--white); }
+  .badge-name.locked-text { color: var(--gray); }
+
+  .gold-bg { background: radial-gradient(circle, #3a2f0a, #1a1608); border: 1.5px solid var(--gold); box-shadow: 0 0 18px rgba(255,197,66,0.45); }
+  .silver-bg { background: radial-gradient(circle, #2a2e36, #161a20); border: 1.5px solid var(--silver); box-shadow: 0 0 14px rgba(199,208,220,0.3); }
+  .bronze-bg { background: radial-gradient(circle, #2e2010, #181208); border: 1.5px solid var(--bronze); box-shadow: 0 0 14px rgba(205,138,86,0.35); }
+
+  /* ---------- New routine form (reused, dark) ---------- */
+  .form-body { flex: 1; overflow-y: auto; padding: 4px 24px 24px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 4px 24px 16px; }
+  .topbar-btn { font-size: 14px; font-weight: 600; color: var(--neon); cursor: pointer; }
+  .topbar-title { font-size: 15px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
+
+  .field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray); margin-bottom: 8px; margin-top: 20px; }
+  .text-input { width: 100%; border: 1.5px solid var(--border); border-radius: 12px; padding: 13px 14px; font-size: 15px; font-family: 'Inter', sans-serif; background: var(--surface); color: var(--white); }
+  .text-input:focus { outline: none; border-color: var(--neon); box-shadow: 0 0 0 3px rgba(0,229,255,0.15); }
+
+  .day-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .day-pill { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--gray); cursor: pointer; background: var(--surface); }
+  .day-pill.sel { background: var(--neon); border-color: var(--neon); color: #05070B; box-shadow: 0 0 10px rgba(0,229,255,0.5); }
+
+  .save-btn { background: var(--neon); color: #05070B; text-align: center; padding: 15px; border-radius: 14px; font-weight: 700; font-size: 15px; margin-top: 24px; cursor: pointer; box-shadow: 0 0 20px rgba(0,229,255,0.35); }
+
+  .threshold-card { background: rgba(123,97,255,0.1); border: 1px solid rgba(123,97,255,0.3); border-radius: 14px; padding: 16px; margin-top: 20px; }
+  .threshold-card .t-label { font-size: 13px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+  .threshold-card .t-sub { font-size: 12px; color: var(--gray); line-height: 1.4; }
+  .threshold-val { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: var(--violet); margin-top: 10px; }
+
+  /* proto nav (not part of app) */
+  .proto-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; justify-content: center; }
+  .proto-tab { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 20px; background: #121826; border: 1px solid #1E2738; color: #9AA5B8; cursor: pointer; }
+  .proto-tab.on { background: var(--neon); color: #05070B; border-color: var(--neon); }
+  .wrap { display: flex; flex-direction: column; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-tabs">
+    <div class="proto-tab on" data-screen="today">Today</div>
+    <div class="proto-tab" data-screen="challenges">Challenges</div>
+    <div class="proto-tab" data-screen="customize">Customize</div>
+    <div class="proto-tab" data-screen="profile">Badges</div>
+    <div class="proto-tab" data-screen="stats">Stats</div>
+    <div class="proto-tab" data-screen="new">New Routine</div>
+  </div>
+
+  <div class="phone">
+
+    <!-- TODAY -->
+    <div class="screen active" id="today">
+      <div class="statusbar"><span>9:41</span><span>●●●  📶  🔋</span></div>
+      <div class="header">
+        <div class="date">Tuesday, June 23</div>
+        <div class="title">Today</div>
+      </div>
+      <div class="today-body">
+        <div class="routine-card">
+          <div class="routine-card-head">
+            <div class="routine-name">Morning Routine</div>
+            <div class="routine-time">6:30 AM</div>
+          </div>
+          <div class="thread" id="thread1">
+            <div class="step done" data-step><div class="step-track"><div class="step-dot"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#05070B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="step-line"></div></div><div class="step-label"><div class="step-title">Drink water</div></div></div>
+            <div class="step done" data-step><div class="step-track"><div class="step-dot"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#05070B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="step-line"></div></div><div class="step-label"><div class="step-title">Stretch</div><div class="step-duration">5 min</div></div></div>
+            <div class="step done" data-step><div class="step-track"><div class="step-dot"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#05070B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="step-line"></div></div><div class="step-label"><div class="step-title">Meditate</div><div class="step-duration">10 min</div></div></div>
+            <div class="step" data-step><div class="step-track"><div class="step-dot"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#05070B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="step-line"></div></div><div class="step-label"><div class="step-title">Journal</div></div></div>
+            <div class="step" data-step><div class="step-track"><div class="step-dot"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#05070B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="step-line"></div></div><div class="step-label"><div class="step-title">Plan the day</div></div></div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-text">3 of 5 · <span class="pct" id="pctText">60%</span> today</div>
+            <div class="progress-bar-mini"><div class="progress-bar-mini-fill" id="pctFill" style="width:60%"></div></div>
+          </div>
+        </div>
+
+        <div class="routine-card">
+          <div class="routine-card-head">
+            <div class="routine-name">Wind Down</div>
+            <div class="routine-time">9:30 PM</div>
+          </div>
+          <div class="thread">
+            <div class="step" data-step><div class="step-track"><div class="step-dot"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#05070B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="step-line"></div></div><div class="step-label"><div class="step-title">Phone away</div></div></div>
+            <div class="step" data-step><div class="step-track"><div class="step-dot"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#05070B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="step-line"></div></div><div class="step-label"><div class="step-title">Read</div><div class="step-duration">15 min</div></div></div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-text">0 of 2 · <span class="pct">0%</span> today</div>
+            <div class="progress-bar-mini"><div class="progress-bar-mini-fill" style="width:0%"></div></div>
+          </div>
+        </div>
+        <div class="empty-add-card" onclick="goTo('new')">+ Add another routine</div>
+      </div>
+      <div class="fab" onclick="goTo('new')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#05070B" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+      <div class="bottomnav">
+        <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l8-8 8 8M6 10v10h12V10" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>Today</div>
+        <div class="nav-item" onclick="goTo('challenges')"><svg viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4zM4 6h3v2a3 3 0 01-3-3zM20 6h-3v2a3 3 0 003-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Challenges</div>
+        <div class="nav-item" onclick="goTo('stats')"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M12 20V4M20 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Stats</div>
+        <div class="nav-item" onclick="goTo('profile')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" stroke-width="2"/></svg>Profile</div>
+      </div>
+    </div>
+
+    <!-- CHALLENGES -->
+    <div class="screen" id="challenges">
+      <div class="statusbar"><span>9:41</span><span>●●●  📶  🔋</span></div>
+      <div class="header">
+        <div class="date">Streak Missions</div>
+        <div class="title">Challenges</div>
+      </div>
+      <div class="challenges-body">
+
+        <div class="section-label">My Routine Streaks</div>
+
+        <div class="challenge-card">
+          <div class="challenge-top">
+            <div>
+              <div class="challenge-name">Morning Routine</div>
+              <div class="challenge-sub">Consecutive days at 80%+ completion</div>
+            </div>
+            <div class="challenge-streak-badge">🔥 18 days</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier bronze unlocked"><span class="tier-icon">🥉</span><span class="tier-label">Bronze</span><span class="tier-days">7 days</span></div>
+            <div class="tier silver unlocked"><span class="tier-icon">🥈</span><span class="tier-label">Silver</span><span class="tier-days">30 days</span></div>
+            <div class="tier gold locked"><span class="tier-icon">🥇</span><span class="tier-label">Gold</span><span class="tier-days">100 days</span></div>
+          </div>
+          <div class="challenge-progress-bar"><div class="challenge-progress-fill" style="width:18%"></div></div>
+          <div class="challenge-progress-text">18 of 100 days to Gold</div>
+        </div>
+
+        <div class="challenge-card">
+          <div class="challenge-top">
+            <div>
+              <div class="challenge-name">Wind Down</div>
+              <div class="challenge-sub">Consecutive days at 80%+ completion</div>
+            </div>
+            <div class="challenge-streak-badge">🔥 4 days</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier bronze locked"><span class="tier-icon">🥉</span><span class="tier-label">Bronze</span><span class="tier-days">7 days</span></div>
+            <div class="tier silver locked"><span class="tier-icon">🥈</span><span class="tier-label">Silver</span><span class="tier-days">30 days</span></div>
+            <div class="tier gold locked"><span class="tier-icon">🥇</span><span class="tier-label">Gold</span><span class="tier-days">100 days</span></div>
+          </div>
+          <div class="challenge-progress-bar"><div class="challenge-progress-fill" style="width:4%"></div></div>
+          <div class="challenge-progress-text">3 more days to Bronze</div>
+        </div>
+
+        <div class="challenge-card">
+          <div class="challenge-top">
+            <div>
+              <div class="challenge-name">All Routines</div>
+              <div class="challenge-sub">Every routine at 80%+, same day, in a row</div>
+            </div>
+            <div class="challenge-streak-badge">🔥 2 days</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier bronze locked"><span class="tier-icon">🥉</span><span class="tier-label">Bronze</span><span class="tier-days">7 days</span></div>
+            <div class="tier silver locked"><span class="tier-icon">🥈</span><span class="tier-label">Silver</span><span class="tier-days">30 days</span></div>
+            <div class="tier gold locked"><span class="tier-icon">🥇</span><span class="tier-label">Gold</span><span class="tier-days">100 days</span></div>
+          </div>
+          <div class="challenge-progress-bar"><div class="challenge-progress-fill" style="width:2%"></div></div>
+          <div class="challenge-progress-text">5 more days to Bronze</div>
+        </div>
+
+        <div class="section-label" style="margin-top:28px">Fitness Challenges</div>
+        <div class="challenge-hint">Multi-day programs with their own daily tasks. Start a template or build your own — every task is editable.</div>
+
+        <div class="template-card" onclick="goTo('customize')">
+          <div class="template-top">
+            <div class="template-icon hard">💪</div>
+            <div class="template-info">
+              <div class="template-name">75 Hard</div>
+              <div class="template-desc">5 daily tasks · strict, no off days · restart on a miss</div>
+            </div>
+          </div>
+          <div class="template-tasks">Diet · 2 workouts · 1 gal water · Read 10pg · Photo</div>
+          <div class="template-cta">Customize &amp; start →</div>
+        </div>
+
+        <div class="template-card" onclick="goTo('customize')">
+          <div class="template-top">
+            <div class="template-icon medium">🌤️</div>
+            <div class="template-info">
+              <div class="template-name">75 Medium</div>
+              <div class="template-desc">5 daily tasks · balanced, some flexibility</div>
+            </div>
+          </div>
+          <div class="template-tasks">Exercise 45m · Water · Read/listen 10m · Meditate · Photo (day 1 &amp; 75)</div>
+          <div class="template-cta">Customize &amp; start →</div>
+        </div>
+
+        <div class="template-card" onclick="goTo('customize')">
+          <div class="template-top">
+            <div class="template-icon soft">🌿</div>
+            <div class="template-info">
+              <div class="template-name">75 Soft</div>
+              <div class="template-desc">4 daily tasks · sustainable, beginner-friendly</div>
+            </div>
+          </div>
+          <div class="template-tasks">1 workout · Balanced eating · Half-gal water · Learn 5-10m</div>
+          <div class="template-cta">Customize &amp; start →</div>
+        </div>
+
+        <div class="template-card build-own" onclick="goTo('customize')">
+          <div class="template-top">
+            <div class="template-icon own">✦</div>
+            <div class="template-info">
+              <div class="template-name">Build Your Own</div>
+              <div class="template-desc">Start blank — set your own tasks, duration, and rules</div>
+            </div>
+          </div>
+          <div class="template-cta">Create challenge →</div>
+        </div>
+
+      </div>
+      <div class="bottomnav">
+        <div class="nav-item" onclick="goTo('today')"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l8-8 8 8M6 10v10h12V10" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>Today</div>
+        <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4zM4 6h3v2a3 3 0 01-3-3zM20 6h-3v2a3 3 0 003-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Challenges</div>
+        <div class="nav-item" onclick="goTo('stats')"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M12 20V4M20 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Stats</div>
+        <div class="nav-item" onclick="goTo('profile')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" stroke-width="2"/></svg>Profile</div>
+      </div>
+    </div>
+
+    <!-- CUSTOMIZE CHALLENGE -->
+    <div class="screen" id="customize">
+      <div class="statusbar"><span>9:41</span><span>●●●  📶  🔋</span></div>
+      <div class="topbar">
+        <div class="topbar-btn" onclick="goTo('challenges')">Cancel</div>
+        <div class="topbar-title">Customize</div>
+        <div class="topbar-btn">Start</div>
+      </div>
+      <div class="form-body">
+        <div class="field-label">Challenge name</div>
+        <input class="text-input" value="75 Hard">
+
+        <div class="field-label">Duration (days)</div>
+        <input class="text-input" value="75">
+
+        <div class="field-label">Daily tasks</div>
+
+        <div class="task-edit-row">
+          <div class="task-edit-checkbox on"></div>
+          <input class="text-input task-edit-input" value="Follow my diet, no cheat meals">
+          <div class="remove-step">✕</div>
+        </div>
+        <div class="task-edit-row">
+          <div class="task-edit-checkbox on"></div>
+          <input class="text-input task-edit-input" value="Workout 1 — 45 min">
+          <div class="remove-step">✕</div>
+        </div>
+        <div class="task-edit-row">
+          <div class="task-edit-checkbox on"></div>
+          <input class="text-input task-edit-input" value="Workout 2 — 45 min outdoors">
+          <div class="remove-step">✕</div>
+        </div>
+        <div class="task-edit-row">
+          <div class="task-edit-checkbox on"></div>
+          <input class="text-input task-edit-input" value="Drink 1 gallon of water">
+          <div class="remove-step">✕</div>
+        </div>
+        <div class="task-edit-row">
+          <div class="task-edit-checkbox on"></div>
+          <input class="text-input task-edit-input" value="Read 10 pages (nonfiction)">
+          <div class="remove-step">✕</div>
+        </div>
+        <div class="task-edit-row">
+          <div class="task-edit-checkbox on"></div>
+          <input class="text-input task-edit-input" value="Take a progress photo">
+          <div class="remove-step">✕</div>
+        </div>
+
+        <div class="add-step-btn-dark">+ Add task</div>
+
+        <div class="threshold-card">
+          <div class="t-label">On a missed task</div>
+          <div class="t-sub">75 Hard's original rule restarts you at Day 1 for any miss. You can keep that, or choose a softer rule.</div>
+          <div class="restart-options">
+            <div class="restart-pill sel">Restart at Day 1</div>
+            <div class="restart-pill">Just skip that day</div>
+            <div class="restart-pill">Count partial credit</div>
+          </div>
+        </div>
+
+        <div class="safety-note">
+          ⚠️ Heads up: some 75 Hard defaults (like 1 gallon of water/day) exceed general hydration guidance. Edit any task above to fit your own needs — there's no requirement to use the original numbers.
+        </div>
+
+        <div class="save-btn">Start Challenge</div>
+      </div>
+    </div>
+
+    <!-- PROFILE / BADGES -->
+    <div class="screen" id="profile">
+      <div class="statusbar"><span>9:41</span><span>●●●  📶  🔋</span></div>
+      <div class="header">
+        <div class="date">Your Collection</div>
+        <div class="title">Badges</div>
+      </div>
+      <div class="profile-body">
+        <div class="badge-grid">
+          <div class="badge-cell"><div class="badge-icon-lg bronze-bg">🥉</div><div class="badge-name">Morning<br>Bronze</div></div>
+          <div class="badge-cell"><div class="badge-icon-lg silver-bg">🥈</div><div class="badge-name">Morning<br>Silver</div></div>
+          <div class="badge-cell"><div class="badge-icon-lg locked">🥇</div><div class="badge-name locked-text">Morning<br>Gold</div></div>
+          <div class="badge-cell"><div class="badge-icon-lg locked">🥉</div><div class="badge-name locked-text">Wind Down<br>Bronze</div></div>
+          <div class="badge-cell"><div class="badge-icon-lg locked">🥈</div><div class="badge-name locked-text">Wind Down<br>Silver</div></div>
+          <div class="badge-cell"><div class="badge-icon-lg locked">🥇</div><div class="badge-name locked-text">Wind Down<br>Gold</div></div>
+          <div class="badge-cell"><div class="badge-icon-lg locked">🥉</div><div class="badge-name locked-text">All Routines<br>Bronze</div></div>
+          <div class="badge-cell"><div class="badge-icon-lg locked">🥈</div><div class="badge-name locked-text">All Routines<br>Silver</div></div>
+          <div class="badge-cell"><div class="badge-icon-lg locked">🥇</div><div class="badge-name locked-text">All Routines<br>Gold</div></div>
+        </div>
+        <div class="section-label" style="margin-top:24px">2 of 9 badges earned</div>
+      </div>
+      <div class="bottomnav">
+        <div class="nav-item" onclick="goTo('today')"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l8-8 8 8M6 10v10h12V10" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>Today</div>
+        <div class="nav-item" onclick="goTo('challenges')"><svg viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4zM4 6h3v2a3 3 0 01-3-3zM20 6h-3v2a3 3 0 003-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Challenges</div>
+        <div class="nav-item" onclick="goTo('stats')"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M12 20V4M20 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Stats</div>
+        <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" stroke-width="2"/></svg>Profile</div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="screen" id="stats">
+      <div class="statusbar"><span>9:41</span><span>●●●  📶  🔋</span></div>
+      <div class="header">
+        <div class="date">Your Progress</div>
+        <div class="title">Stats</div>
+      </div>
+      <div class="stats-body">
+        <div class="streak-hero">
+          <div class="label">Current streak</div>
+          <div class="num">18 days</div>
+          <div class="sub">Best yet — your record is 21 days</div>
+        </div>
+
+        <div class="badge-strip">
+          <div class="badge-mini"><div class="badge-mini-icon bronze-bg">🥉</div><div class="badge-mini-label">Morning</div></div>
+          <div class="badge-mini"><div class="badge-mini-icon silver-bg">🥈</div><div class="badge-mini-label">Morning</div></div>
+        </div>
+
+        <div class="section-label">This week</div>
+        <div class="week-grid">
+          <div class="week-day-label">S</div><div class="week-day-label">M</div><div class="week-day-label">T</div><div class="week-day-label">W</div><div class="week-day-label">T</div><div class="week-day-label">F</div><div class="week-day-label">S</div>
+          <div class="day-cell" style="background:#00E5FF;color:#05070B">100</div>
+          <div class="day-cell" style="background:#00B8CC;color:#05070B">85</div>
+          <div class="day-cell" style="background:#0A4A52;color:#9AA5B8">60</div>
+          <div class="day-cell" style="background:#00C2DB;color:#05070B">90</div>
+          <div class="day-cell" style="background:#7B61FF;color:white">60</div>
+          <div class="day-cell" style="background:var(--border);color:var(--gray)">—</div>
+          <div class="day-cell" style="background:var(--border);color:var(--gray)">—</div>
+        </div>
+
+        <div class="section-label">By routine</div>
+        <div class="insight-row"><div class="name">Morning Routine</div><div class="val">92% avg</div></div>
+        <div class="insight-row"><div class="name">Wind Down</div><div class="val">74% avg</div></div>
+
+        <div class="section-label">Most often skipped</div>
+        <div class="insight-row"><div class="name">Journal</div><div class="val" style="color:var(--violet)">3× this week</div></div>
+      </div>
+      <div class="bottomnav">
+        <div class="nav-item" onclick="goTo('today')"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l8-8 8 8M6 10v10h12V10" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>Today</div>
+        <div class="nav-item" onclick="goTo('challenges')"><svg viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4zM4 6h3v2a3 3 0 01-3-3zM20 6h-3v2a3 3 0 003-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Challenges</div>
+        <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M12 20V4M20 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Stats</div>
+        <div class="nav-item" onclick="goTo('profile')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" stroke-width="2"/></svg>Profile</div>
+      </div>
+    </div>
+
+    <!-- NEW ROUTINE -->
+    <div class="screen" id="new">
+      <div class="statusbar"><span>9:41</span><span>●●●  📶  🔋</span></div>
+      <div class="topbar">
+        <div class="topbar-btn" onclick="goTo('today')">Cancel</div>
+        <div class="topbar-title">New Routine</div>
+        <div class="topbar-btn">Save</div>
+      </div>
+      <div class="form-body">
+        <div class="field-label">Name</div>
+        <input class="text-input" placeholder="e.g. Morning Routine" value="Evening Workout">
+
+        <div class="field-label">Repeat on</div>
+        <div class="day-pills">
+          <div class="day-pill">S</div><div class="day-pill sel">M</div><div class="day-pill sel">T</div><div class="day-pill sel">W</div><div class="day-pill sel">T</div><div class="day-pill sel">F</div><div class="day-pill">S</div>
+        </div>
+
+        <div class="field-label">Reminder time</div>
+        <input class="text-input" value="6:00 PM">
+
+        <div class="field-label">Steps</div>
+        <div class="step-input-row" style="display:flex;gap:10px;margin-bottom:8px;">
+          <input class="text-input" value="Warm up">
+        </div>
+        <div class="step-input-row" style="display:flex;gap:10px;margin-bottom:8px;">
+          <input class="text-input" value="Main set">
+        </div>
+        <div class="step-input-row" style="display:flex;gap:10px;margin-bottom:8px;">
+          <input class="text-input" value="Cool down">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;color:var(--neon);font-weight:600;font-size:14px;padding:10px 0;cursor:pointer;">+ Add step</div>
+
+        <div class="threshold-card">
+          <div class="t-label">Streak threshold</div>
+          <div class="t-sub">Complete this much of the routine to count today toward your streak and challenge progress.</div>
+          <div class="threshold-val">80%</div>
+        </div>
+
+        <div class="save-btn">Save Routine</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function goTo(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.proto-tab').forEach(t => t.classList.toggle('on', t.dataset.screen === id));
+  }
+  document.querySelectorAll('.proto-tab').forEach(t => t.addEventListener('click', () => goTo(t.dataset.screen)));
+
+  document.querySelectorAll('#thread1 [data-step]').forEach(step => {
+    step.addEventListener('click', () => {
+      step.classList.toggle('done');
+      const steps = document.querySelectorAll('#thread1 [data-step]');
+      const done = document.querySelectorAll('#thread1 [data-step].done').length;
+      const pct = Math.round((done / steps.length) * 100);
+      step.closest('.routine-card').querySelector('.progress-text').innerHTML =
+        done + ' of ' + steps.length + ' · <span class="pct">' + pct + '%</span> today';
+      step.closest('.routine-card').querySelector('.progress-bar-mini-fill').style.width = pct + '%';
+    });
+  });
+
+  document.querySelectorAll('.day-pill').forEach(p => p.addEventListener('click', () => p.classList.toggle('sel')));
+
+  document.querySelectorAll('.task-edit-checkbox').forEach(cb => cb.addEventListener('click', () => cb.classList.toggle('on')));
+
+  document.querySelectorAll('.restart-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      pill.parentElement.querySelectorAll('.restart-pill').forEach(p => p.classList.remove('sel'));
+      pill.classList.add('sel');
+    });
+  });
+</script>
+</body>
+</html>
